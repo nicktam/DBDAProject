@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  InstanceType:
+    Description: AWS EC2 instance type
+    Type: String
+    Default: m4.xlarge
+    AllowedValues :
+      - m4.large 
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+      - m4.10xlarge
+    Type: String
+  ReleaseLabel:
+    Type: String
+    Default: emr-5.28.1
+    AllowedValues:
+      - emr-5.0.0
+      - emr-5.4.0
+      - emr-5.16.0
+      - emr-5.17.0
+      - emr-5.28.1
+  InstanceCount:
+    Default: '2'
+    Description: Number of core instances
+    MinValue: 1
+    MaxValue: 5
+    Type: Number
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH to the instances
+    Type: AWS::EC2::KeyPair::KeyName
+  EMRLogDir:
+    Description: Log Dir for the EMR cluster
+    Type: String
+    Default: s3://logs210012020
+Resources:
+  EMRSampleCluster:
+    Properties:
+      Instances:
+        Ec2KeyName:
+          Ref: KeyName
+        MasterInstanceGroup:
+          InstanceCount: 1
+          InstanceType: !Ref InstanceType
+          Market: ON_DEMAND
+          Name: cfnMaster
+        CoreInstanceGroup:
+          InstanceCount: !Ref InstanceCount
+          InstanceType: !Ref InstanceType
+          Market: ON_DEMAND
+          Name: cfnCore
+        TerminationProtected: false
+        KeepJobFlowAliveWhenNoSteps: true
+      Name: Final_EMR
+      JobFlowRole: EMR_EC2_DefaultRole
+      LogUri:
+        Ref: EMRLogDir
+      ServiceRole: EMR_DefaultRole
+      VisibleToAllUsers: true
+      ReleaseLabel: !Ref ReleaseLabel
+      Tags:
+        - Key: Name
+          Value: test_emr
+      Applications:
+        - Name: Hive
+        - Name: Spark
+        - Name: Hue
+    Type: AWS::EMR::Cluster
+
+  DataInjestion:
+    Properties:
+      ActionOnFailure: CONTINUE
+      HadoopJarStep:
+        Args:
+        - s3://projectgroup5/project_files/DataInjestion_26012020.sh
+        Jar: s3://us-east-1.elasticmapreduce/libs/script-runner/script-runner.jar
+        MainClass: ''
+      JobFlowId:
+        Ref: EMRSampleCluster
+      Name: DataInjestion_26012020
+    Type: AWS::EMR::Step
